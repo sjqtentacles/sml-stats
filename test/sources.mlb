@@ -1,0 +1,14 @@
+(* Test executable basis: the stats library (which pulls in the vendored
+   sml-prng generators) plus the harness, helpers, and per-feature suites. *)
+$(SML_LIB)/basis/basis.mlb
+
+../src/stats.mlb
+
+harness.sml
+support.sml
+test_descriptive.sml
+test_distributions.sml
+test_regression.sml
+test_ttest.sml
+entry.sml
+main.sml
