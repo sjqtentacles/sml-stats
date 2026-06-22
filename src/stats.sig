@@ -81,6 +81,47 @@ sig
   val linregress :
     (real * real) list -> { slope : real, intercept : real, r2 : real }
 
+  (* ---- correlation ---- *)
+
+  (* Pearson product-moment correlation coefficient r of two equal-length,
+     non-constant samples (xs, ys). Raises `Empty` if the lists differ in
+     length, have fewer than two points, or either has zero variance.
+     `correlation` is an alias for `pearson`. *)
+  val pearson     : real list * real list -> real
+  val correlation : real list * real list -> real
+
+  (* Spearman rank correlation coefficient: Pearson's r computed on the
+     fractional ranks of each sample, where tied values share their average
+     rank. Same domain restrictions as `pearson`. *)
+  val spearman    : real list * real list -> real
+
+  (* ---- chi-square goodness-of-fit ---- *)
+
+  (* `chiSquareTest (observed, expected)` for two equal-length lists of
+     category counts (expected entries must be > 0). Returns
+       statistic = Sum_i (o_i - e_i)^2 / e_i,
+       df        = length - 1,
+       pValue    = Q(df/2, statistic/2)   (regularized upper incomplete gamma).
+     Raises `Empty` on length mismatch or fewer than two categories. *)
+  val chiSquareTest :
+    real list * real list -> { statistic : real, df : int, pValue : real }
+
+  (* ---- F distribution ---- *)
+
+  (* Survival function of the F distribution: `fSf (x, dfn, dfd)` = P(F > x)
+     for an F variate with `dfn` numerator and `dfd` denominator degrees of
+     freedom, via the regularized incomplete beta. `x` >= 0, dfn,dfd >= 1. *)
+  val fSf : real * int * int -> real
+
+  (* `fTest (a, b)` compares the two samples' variances with an F-test:
+       statistic = variance a / variance b,
+       dfn       = length a - 1,  dfd = length b - 1,
+       pValue    = fSf (statistic, dfn, dfd)   (upper-tail).
+     Both samples need at least two points with non-zero variance in `b`. *)
+  val fTest :
+    real list * real list ->
+    { statistic : real, dfn : int, dfd : int, pValue : real }
+
   (* ---- Student's t ---- *)
 
   (* CDF of the Student-t distribution with `df` degrees of freedom. *)

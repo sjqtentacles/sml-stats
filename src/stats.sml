@@ -324,6 +324,102 @@ struct
       { slope = slope, intercept = intercept, r2 = r2 }
     end
 
+  (* ---- correlation ---- *)
+
+  (* Pearson r = Sum dx*dy / sqrt(Sum dx^2 * Sum dy^2), where dx = x - mean x
+     and dy = y - mean y. *)
+  fun pearson (xs, ys) =
+    let
+      val n = List.length xs
+      val () = if n <> List.length ys orelse n < 2 then raise Empty else ()
+      val mx = mean xs
+      val my = mean ys
+      val (sxy, sxx, syy) =
+        ListPair.foldl
+          (fn (x, y, (axy, axx, ayy)) =>
+             let val dx = x - mx val dy = y - my
+             in (axy + dx * dy, axx + dx * dx, ayy + dy * dy) end)
+          (0.0, 0.0, 0.0) (xs, ys)
+      val () = if sxx <= 0.0 orelse syy <= 0.0 then raise Empty else ()
+    in
+      sxy / Math.sqrt (sxx * syy)
+    end
+
+  val correlation = pearson
+
+  (* Average (fractional) ranks: an element with L strictly-smaller and E equal
+     values (E counts itself) occupies positions L+1..L+E, whose mean is
+     L + (E+1)/2.  O(n^2) but deterministic and order-independent. *)
+  fun averageRanks xs =
+    List.map
+      (fn x =>
+         let
+           val less =
+             List.foldl (fn (y, a) => if y < x then a + 1 else a) 0 xs
+           val equal =
+             List.foldl (fn (y, a) => if Real.== (y, x) then a + 1 else a) 0 xs
+         in
+           real less + real (equal + 1) / 2.0
+         end)
+      xs
+
+  (* Spearman rho = Pearson r on the average ranks of each sample. *)
+  fun spearman (xs, ys) =
+    ( if List.length xs <> List.length ys then raise Empty else ()
+    ; pearson (averageRanks xs, averageRanks ys) )
+
+  (* ---- chi-square goodness-of-fit ---- *)
+
+  (* statistic = Sum (o-e)^2/e; df = k-1; p = Q(df/2, statistic/2). *)
+  fun chiSquareTest (observed, expected) =
+    let
+      val k = List.length observed
+      val () = if k <> List.length expected orelse k < 2 then raise Empty else ()
+      val statistic =
+        ListPair.foldl
+          (fn (ob, ex, acc) => acc + (ob - ex) * (ob - ex) / ex)
+          0.0 (observed, expected)
+      val df = k - 1
+    in
+      { statistic = statistic,
+        df = df,
+        pValue = Specfun.gammaIncQ (real df / 2.0, statistic / 2.0) }
+    end
+
+  (* ---- F distribution ---- *)
+
+  (* Survival P(F > x).  The F cdf is I_{u}(d1/2, d2/2) with
+     u = d1 x / (d1 x + d2); using I_u(a,b) = 1 - I_{1-u}(b,a) the upper tail
+     is I_{d2/(d2 + d1 x)}(d2/2, d1/2). *)
+  fun fSf (x, dfn, dfd) =
+    if x <= 0.0 then 1.0
+    else
+      let
+        val d1 = real dfn
+        val d2 = real dfd
+      in
+        Specfun.betaInc (d2 / 2.0, d1 / 2.0, d2 / (d2 + d1 * x))
+      end
+
+  (* Two-sample variance-ratio F-test, statistic = var a / var b. *)
+  fun fTest (a, b) =
+    let
+      val na = List.length a
+      val nb = List.length b
+      val () = if na < 2 orelse nb < 2 then raise Empty else ()
+      val va = variance a
+      val vb = variance b
+      val () = if vb <= 0.0 then raise Empty else ()
+      val statistic = va / vb
+      val dfn = na - 1
+      val dfd = nb - 1
+    in
+      { statistic = statistic,
+        dfn = dfn,
+        dfd = dfd,
+        pValue = fSf (statistic, dfn, dfd) }
+    end
+
   (* ---- Student's t ---- *)
 
   (* CDF via the incomplete beta: with x = df/(df+t^2),

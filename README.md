@@ -2,17 +2,21 @@
 
 Statistics in pure Standard ML — descriptive moments, three probability
 distributions (Normal, Binomial, Poisson) with `pdf`/`cdf`/`sample`, ordinary
-least-squares linear regression, and Student's t-test — built on
+least-squares linear regression, Pearson/Spearman correlation, the chi-square
+goodness-of-fit test, the F-distribution, and Student's t-test — built on
 [`sml-prng`](https://github.com/sjqtentacles/sml-prng) for deterministic,
-seedable sampling. No FFI, no external dependencies, and **deterministic**,
-byte-identically under both [MLton](http://mlton.org/) and
-[Poly/ML](https://www.polyml.org/).
+seedable sampling and [`sml-specfun`](https://github.com/sjqtentacles/sml-specfun)
+for the regularized incomplete gamma/beta tails. No FFI, no external
+dependencies, and **deterministic**, byte-identically under both
+[MLton](http://mlton.org/) and [Poly/ML](https://www.polyml.org/).
 
 ## Status
 
-- 78 assertions, green on MLton and Poly/ML.
-- Basis-library + vendored `sml-prng` only; deterministic across compilers.
-- Vendors `sml-prng` (Layout B), so the repo builds standalone.
+- 108 assertions, green on MLton and Poly/ML.
+- Basis-library + vendored `sml-prng` and `sml-specfun` only; deterministic
+  across compilers.
+- Vendors `sml-prng` and `sml-specfun` (Layout B), so the repo builds
+  standalone.
 
 ## Install
 
@@ -61,6 +65,21 @@ val { slope, intercept, r2 } =
 val { t, df, pValue } =
   Stats.tTestTwo { a = [1.0,2.0,3.0,4.0,5.0], b = [6.0,7.0,8.0,9.0,10.0] }
 (* t = -5.0, df = 8.0 *)
+
+(* correlation *)
+val r   = Stats.pearson  ([1.0,2.0,3.0,4.0,5.0], [2.0,4.0,5.0,4.0,5.0]) (* ~0.7746 *)
+val rho = Stats.spearman ([1.0,2.0,3.0,4.0,5.0], [1.0,2.0,2.0,3.0,4.0]) (* tie-aware *)
+
+(* chi-square goodness-of-fit (observed vs expected counts) *)
+val { statistic, df, pValue } =
+  Stats.chiSquareTest ([16.0,18.0,16.0,14.0,12.0,12.0],
+                       [14.6667,14.6667,14.6667,14.6667,14.6667,14.6667])
+(* statistic = 2.0, df = 5 *)
+
+(* F-distribution: survival and a variance-ratio F-test *)
+val tail = Stats.fSf (5.0503, 5, 5)   (* ~0.05, the F_0.05(5,5) critical value *)
+val { statistic, dfn, dfd, pValue } =
+  Stats.fTest ([5.1,4.9,5.3,5.0,5.2], [5.6,5.8,5.5,5.9,5.7])
 ```
 
 ## API (`signature STATS`)
@@ -82,14 +101,29 @@ structure Normal   : sig type param = { mu : real, sigma : real } ... end
 structure Binomial : sig type param = { n : int, p : real }       ... end
 structure Poisson  : sig type param = { lambda : real }           ... end
 
-(* regression and inference *)
+(* regression *)
 val linregress  : (real * real) list
                   -> { slope : real, intercept : real, r2 : real }
+
+(* correlation *)
+val pearson     : real list * real list -> real   (* Pearson r          *)
+val correlation : real list * real list -> real   (* alias for pearson  *)
+val spearman    : real list * real list -> real   (* rank corr (ties ->
+                                                     average ranks)     *)
+
+(* inference *)
 val studentTCdf : { t : real, df : real } -> real
 val tTestOne    : { data : real list, mu0 : real }
                   -> { t : real, df : real, pValue : real }
 val tTestTwo    : { a : real list, b : real list }
                   -> { t : real, df : real, pValue : real }
+(* chi-square goodness-of-fit (observed, expected) *)
+val chiSquareTest : real list * real list
+                  -> { statistic : real, df : int, pValue : real }
+(* F survival P(F > x) for (x, dfn, dfd), and the variance-ratio F-test *)
+val fSf   : real * int * int -> real
+val fTest : real list * real list
+          -> { statistic : real, dfn : int, dfd : int, pValue : real }
 ```
 
 The library is a functor `StatsFn (R : RANDOM) :> STATS where type rng = R.state`
@@ -109,6 +143,16 @@ default `structure Stats = StatsFn (SplitMix64)`, so its `rng` is
 - `studentTCdf` and the t-test p-values use the regularized incomplete beta
   function (`gammaln` + a Numerical-Recipes continued fraction), matching
   published t-tables; the reported p-values are **two-tailed**.
+- `correlation` is an alias for `pearson`; `spearman` is Pearson's r on the
+  **average** ranks of each sample (tied values share their mean rank).
+- `chiSquareTest (observed, expected)` returns the Pearson statistic
+  `Σ (o−e)²/e`, `df = k−1`, and the upper-tail p-value
+  `Q(df/2, statistic/2)` (regularized upper incomplete gamma).
+- `fSf (x, dfn, dfd)` is the F **survival** function `P(F > x)` via the
+  regularized incomplete beta, so `fTest` p-values match published F-tables;
+  both come from the vendored
+  [`sml-specfun`](https://github.com/sjqtentacles/sml-specfun) (`gammaIncQ`,
+  `betaInc`).
 - Sampling is **pure and seedable**: `sample` takes a generator state and
   returns the draw plus the successor state. The same seed yields the same
   draws on every run, machine, and compiler.
@@ -128,14 +172,18 @@ hand-computed moments and quantiles, distribution `pdf`/`cdf` values
 (`N(0,1)` cdf at 0/1/1.96, `Binom(10,½)` at `k = 5`, `Poisson(3)`), exact and
 noisy regression fits, and t-statistics against known values (a two-sample
 `t = -5, df = 8` by construction; the `df = 10, |t| = 2.228 → p ≈ 0.05`
-t-table entry; the Cauchy `df = 1` closed form). Samplers are checked for
-reproducibility, support bounds, and the law of large numbers.
+t-table entry; the Cauchy `df = 1` closed form). Correlation, chi-square and
+F-test additions are pinned to hand-derived `Σ`-formula values and to standard
+table entries (chi-square 5% criticals 3.841/5.991/7.815, the F 5% criticals
+`F_0.05(5,5)=5.0503`, `F_0.05(10,10)=2.9782`, `F_0.05(4,4)=6.3882`). Samplers
+are checked for reproducibility, support bounds, and the law of large numbers.
 
 ## Example
 
 `make example` draws 1000 `Normal(50, 10)` samples from a fixed seed and prints
-a reproducible summary, an ASCII histogram, a regression fit, and two t-tests
-(output is byte-identical under MLton and Poly/ML):
+a reproducible summary, an ASCII histogram, a regression fit, two t-tests, and
+the correlation / chi-square / F-test additions (output is byte-identical under
+MLton and Poly/ML):
 
 ```
 === sml-stats demo ============================================
@@ -188,6 +236,16 @@ One-sample t-test  (group A vs mu0 = 5.0)
   t = 0.8799   df = 6.0   p = 0.4128
 Two-sample t-test  (group A vs group B, pooled)
   t = ~6.1619   df = 12.0   p = 0.000049
+
+Correlation  (x = [1,2,3,4,5], y = [2,4,5,4,5])
+  pearson   = 0.7746
+  spearman  = 0.7379
+
+Chi-square goodness-of-fit  (observed vs uniform expected)
+  statistic = 2.0000   df = 5   p = 0.8491
+
+F-test  (variance ratio, group A vs group B)
+  statistic = 0.6327   dfn = 6   dfd = 6   p = 0.7039
 
 ===============================================================
 ```

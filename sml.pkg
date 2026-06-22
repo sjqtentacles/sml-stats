@@ -2,4 +2,5 @@ package github.com/sjqtentacles/sml-stats
 
 require {
   github.com/sjqtentacles/sml-prng
+  github.com/sjqtentacles/sml-specfun
 }

@@ -10,5 +10,8 @@ test_descriptive.sml
 test_distributions.sml
 test_regression.sml
 test_ttest.sml
+test_correlation.sml
+test_chisquare.sml
+test_ftest.sml
 entry.sml
 main.sml

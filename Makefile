@@ -7,15 +7,16 @@
 #   make example    build + run examples/demo.sml
 #   make clean      remove build artifacts
 #
-# Layout B (dependent): own sources live in src/; sml-prng is vendored under
-# lib/ and loaded first, in dependency order.
+# Layout B (dependent): own sources live in src/; sml-prng and sml-specfun are
+# vendored under lib/ and loaded first, in dependency order.
 
 MLTON      ?= mlton
 POLY       ?= poly
 BIN        := bin
 PRNGDIR    := lib/github.com/sjqtentacles/sml-prng
+SPECFUNDIR := lib/github.com/sjqtentacles/sml-specfun
 TEST_MLB   := test/sources.mlb
-SRCS       := $(wildcard $(PRNGDIR)/* src/* test/*.sml) $(TEST_MLB)
+SRCS       := $(wildcard $(PRNGDIR)/* $(SPECFUNDIR)/* src/* test/*.sml) $(TEST_MLB)
 
 .PHONY: all test poly test-poly all-tests example clean
 
@@ -37,7 +38,7 @@ test: $(BIN)/test-mlton
 # its own. Load the vendored sml-prng first, then the stats sources, then the
 # test driver, in dependency order.
 poly test-poly:
-	printf 'use "$(PRNGDIR)/prng.sig";\nuse "$(PRNGDIR)/prng.sml";\nuse "src/stats.sig";\nuse "src/stats.sml";\nuse "test/harness.sml";\nuse "test/support.sml";\nuse "test/test_descriptive.sml";\nuse "test/test_distributions.sml";\nuse "test/test_regression.sml";\nuse "test/test_ttest.sml";\nuse "test/entry.sml";\nuse "test/main.sml";\n' | $(POLY) -q --error-exit
+	printf 'use "$(PRNGDIR)/prng.sig";\nuse "$(PRNGDIR)/prng.sml";\nuse "$(SPECFUNDIR)/specfun.sig";\nuse "$(SPECFUNDIR)/specfun.sml";\nuse "src/stats.sig";\nuse "src/stats.sml";\nuse "test/harness.sml";\nuse "test/support.sml";\nuse "test/test_descriptive.sml";\nuse "test/test_distributions.sml";\nuse "test/test_regression.sml";\nuse "test/test_ttest.sml";\nuse "test/test_correlation.sml";\nuse "test/test_chisquare.sml";\nuse "test/test_ftest.sml";\nuse "test/entry.sml";\nuse "test/main.sml";\n' | $(POLY) -q --error-exit
 
 all-tests: test test-poly
 

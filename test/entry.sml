@@ -6,6 +6,9 @@ fun runAllSuites () =
   ; DistributionTests.run ()
   ; RegressionTests.run ()
   ; TTestTests.run ()
+  ; CorrelationTests.run ()
+  ; ChiSquareTests.run ()
+  ; FTestTests.run ()
   ; Harness.run () )
 
 fun main () =

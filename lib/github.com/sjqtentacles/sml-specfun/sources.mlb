@@ -1,0 +1,7 @@
+(* Source files for the sml-specfun library, in dependency order.
+   Basis-library only -- no vendored dependencies. *)
+
+$(SML_LIB)/basis/basis.mlb
+
+specfun.sig
+specfun.sml

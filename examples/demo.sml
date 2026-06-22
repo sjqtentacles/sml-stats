@@ -12,6 +12,10 @@ structure S = Stats
 (* Real formatting that is byte-identical across compilers (fixed decimals;
    always includes a decimal point). *)
 fun fmt k x = Real.fmt (StringCvt.FIX (SOME k)) x
+(* Same, but with a leading "-" (not SML's "~") for negatives. *)
+fun fmtD k x =
+  let val s = fmt k x
+  in if String.isPrefix "~" s then "-" ^ String.extract (s, 1, NONE) else s end
 fun line s = print (s ^ "\n")
 
 (* Draw 1000 N(50, 10) samples with a fixed seed -> a reproducible stream. *)
@@ -108,5 +112,32 @@ val () = line ("  t = " ^ fmt 4 (#t one) ^ "   df = " ^ fmt 1 (#df one)
 val () = line "Two-sample t-test  (group A vs group B, pooled)"
 val () = line ("  t = " ^ fmt 4 (#t two) ^ "   df = " ^ fmt 1 (#df two)
                ^ "   p = " ^ fmt 6 (#pValue two))
+val () = line ""
+
+(* ---- correlation ---- *)
+val cx = [1.0, 2.0, 3.0, 4.0, 5.0]
+val cy = [2.0, 4.0, 5.0, 4.0, 5.0]
+val () = line "Correlation  (x = [1,2,3,4,5], y = [2,4,5,4,5])"
+val () = line ("  pearson   = " ^ fmtD 4 (S.pearson (cx, cy)))
+val () = line ("  spearman  = " ^ fmtD 4 (S.spearman (cx, cy)))
+val () = line ""
+
+(* ---- chi-square goodness-of-fit ---- *)
+val obs = [16.0, 18.0, 16.0, 14.0, 12.0, 12.0]
+val exp = List.tabulate (6, fn _ => S.sum obs / 6.0)
+val chi = S.chiSquareTest (obs, exp)
+val () = line "Chi-square goodness-of-fit  (observed vs uniform expected)"
+val () = line ("  statistic = " ^ fmtD 4 (#statistic chi)
+               ^ "   df = " ^ Int.toString (#df chi)
+               ^ "   p = " ^ fmtD 4 (#pValue chi))
+val () = line ""
+
+(* ---- F-test (variance ratio) ---- *)
+val ftt = S.fTest (groupA, groupB)
+val () = line "F-test  (variance ratio, group A vs group B)"
+val () = line ("  statistic = " ^ fmtD 4 (#statistic ftt)
+               ^ "   dfn = " ^ Int.toString (#dfn ftt)
+               ^ "   dfd = " ^ Int.toString (#dfd ftt)
+               ^ "   p = " ^ fmtD 4 (#pValue ftt))
 val () = line ""
 val () = line "==============================================================="
