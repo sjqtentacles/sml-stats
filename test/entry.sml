@@ -9,6 +9,7 @@ fun runAllSuites () =
   ; CorrelationTests.run ()
   ; ChiSquareTests.run ()
   ; FTestTests.run ()
+  ; PropertyTests.run ()
   ; Harness.run () )
 
 fun main () =

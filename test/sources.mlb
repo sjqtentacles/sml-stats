@@ -2,6 +2,23 @@
    sml-prng generators) plus the harness, helpers, and per-feature suites. *)
 $(SML_LIB)/basis/basis.mlb
 
+(* sml-check is a TEST-only dependency: it is not required by the stats
+   library itself (see ../src/stats.mlb, which has its own real,
+   non-test-only sml-prng dependency), and only the property-test section
+   needs it. Include order for the flat Poly/ML `use` model
+   (tools/polybuild): sml-prng -> sml-test (check.sig references Test.test
+   in its toTest bridge) -> sml-check -> our own Harness -> the library
+   under test -> the suites + entry/main shims. The sml-prng files here are
+   the exact same vendored copies ../src/stats.mlb pulls in via prng.mlb, so
+   there is no duplicate-definition conflict. *)
+
+../lib/github.com/sjqtentacles/sml-prng/prng.sig
+../lib/github.com/sjqtentacles/sml-prng/prng.sml
+../lib/github.com/sjqtentacles/sml-test/test.sig
+../lib/github.com/sjqtentacles/sml-test/test.sml
+../lib/github.com/sjqtentacles/sml-check/check.sig
+../lib/github.com/sjqtentacles/sml-check/check.sml
+
 ../src/stats.mlb
 
 harness.sml
@@ -13,5 +30,6 @@ test_ttest.sml
 test_correlation.sml
 test_chisquare.sml
 test_ftest.sml
+test_properties.sml
 entry.sml
 main.sml
