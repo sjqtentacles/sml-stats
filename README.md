@@ -1,5 +1,7 @@
 # sml-stats
 
+[![CI](https://github.com/sjqtentacles/sml-stats/actions/workflows/ci.yml/badge.svg)](https://github.com/sjqtentacles/sml-stats/actions/workflows/ci.yml)
+
 Statistics in pure Standard ML — descriptive moments, three probability
 distributions (Normal, Binomial, Poisson) with `pdf`/`cdf`/`sample`, ordinary
 least-squares linear regression, Pearson/Spearman correlation, the chi-square
